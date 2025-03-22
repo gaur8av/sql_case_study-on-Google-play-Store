@@ -12,10 +12,26 @@ This project presents a detailed SQL-based analysis of Google Play Store data. I
 ## Objectives
 
 1. Clean and preprocess raw Play Store data.
-2. Analyze business problems using SQL queries.
-3. Implement SQL triggers and recovery solutions.
-4. Build dynamic SQL tools for real-time analysis.
-5. Deliver actionable insights for strategic decisions.
+2. Dataset import.
+3. Analyze business problems using SQL queries.
+4. Implement SQL triggers and recovery solutions.
+5. Build dynamic SQL tools for real-time analysis.
+6. Deliver actionable insights for strategic decisions.
+
+---
+
+## 📥 Dataset Import
+
+To load the dataset into your SQL database, the following command was used:
+
+```sql
+LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/playstore.csv'
+INTO TABLE campusx.playstore
+FIELDS TERMINATED BY ','
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 ROWS;
+```
 
 ---
 
