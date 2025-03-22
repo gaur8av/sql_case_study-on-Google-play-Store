@@ -43,15 +43,13 @@ LIMIT 5;
 **Objective:** Identify categories with the highest total revenue (Price × Installs).
 
 ```sql
-SELECT Category, AVG(Revenue) AS avg_cat_rev 
-FROM (
-    SELECT *, (Price * Installs) AS Revenue 
-    FROM playstore 
-    WHERE Price != 0
-) t 
-GROUP BY Category 
-ORDER BY avg_cat_rev DESC 
-LIMIT 3;
+select * from playstore;
+select Category , avg(Revenue) as 'avg_cat_rev' from
+(
+	select * , (Price * Installs) as 'Revenue' from playstore where Price != 0
+) t
+group by Category
+order by avg_cat_rev desc limit 3;
 ```
 
 ---
@@ -115,18 +113,32 @@ CREATE TABLE pricechangelog (
   operation_date TIMESTAMP
 );
 
-DELIMITER //
-CREATE TRIGGER log_price_update 
-BEFORE UPDATE ON playstore 
-FOR EACH ROW 
+CREATE TRIGGER price_change_log
+AFTER UPDATE
+ON play
+FOR EACH ROW
 BEGIN
-  IF OLD.Price != NEW.Price THEN
-    INSERT INTO pricechangelog 
-    VALUES (OLD.App, OLD.Price, NEW.Price, 'UPDATE', CURRENT_TIMESTAMP);
-  END IF;
+    INSERT INTO pricechangelog(app, old_price, new_price, operation_type, operation_date)
+    VALUES (NEW.app, OLD.price, NEW.price, 'update', CURRENT_TIMESTAMP);
 END;
 //
+
 DELIMITER ;
+
+
+-- now we change in play table than see how trigger work
+set sql_safe_updates = 0
+
+UPDATE play
+SET price = 4
+WHERE app = 'Infinite Painter';
+
+update play
+set price = 5
+where app = 'Sketch - Draw & Paint';
+
+select * from pricechangelog;
+
 ```
 
 ---
@@ -134,12 +146,20 @@ DELIMITER ;
 ### 🔁 Task 6: Restore Price After Hack from Logged Data
 
 **Objective:** Use backup log table to restore original prices.
+#### -- reverse trigger
+#### -- new concept -> (update + join)
+
 
 ```sql
-UPDATE playstore p
-JOIN pricechangelog pc ON p.App = pc.app
-SET p.Price = pc.old_price
-WHERE pc.operation_type = 'UPDATE';
+select * from play as a inner join pricechangelog as b on a.app = b.app;   -- step - 1.
+
+drop trigger price_change_log;
+
+update play as a 
+inner join pricechangelog as b on a.app = b.app
+set a.price = b.old_price;
+
+select * from play where app='Sketch - Draw & Paint';
 ```
 
 ---
@@ -149,10 +169,28 @@ WHERE pc.operation_type = 'UPDATE';
 **Objective:** Explore if highly rated apps also have more reviews.
 
 ```sql
-SELECT Rating, Reviews 
-FROM playstore 
-WHERE Rating IS NOT NULL AND Reviews IS NOT NULL;
--- Use visualization tools like Excel/Power BI to plot correlation
+set @x = (select Round(avg(rating),2)  from playstore);
+set @y = (select Round(avg(reviews),2)  from playstore);
+
+
+WITH m AS (
+	SELECT *, 
+	       (rat * rat) AS 'sqrt_x',
+	       (rev * rev) AS 'sqrt_y'
+	FROM (
+		SELECT rating, @x, ROUND((rating - @x), 2) AS 'rat',
+		       reviews, @y, ROUND((reviews - @y), 2) AS 'rev' 
+		FROM playstore
+	) k
+)
+
+-- select * from m;
+
+select @numerator := Round(sum((rat * rev)),2),
+@deno_1 := Round(sum(sqrt_x),2) , @deno_2 := Round(sum(sqrt_y),2) from m;
+select @numerator , @deno_1 , @deno_2;
+ 
+ select Round(((@numerator) / (sqrt(@deno_1 * @deno_2))),2) as 'correlation_cofficient';
 ```
 
 ---
@@ -162,12 +200,33 @@ WHERE Rating IS NOT NULL AND Reviews IS NOT NULL;
 **Objective:** Split genres like "Action;Adventure" into two separate columns.
 
 ```sql
-SELECT 
-    App,
-    Category,
-    TRIM(SUBSTRING_INDEX(Genres, ";", 1)) AS Genre_1,
-    TRIM(SUBSTRING_INDEX(Genres, ";", -1)) AS Genre_2
-FROM playstore;
+DELIMITER //
+ create function f_name(a varchar(200))
+ returns varchar(200)
+ deterministic
+ begin
+     set @l = locate(';' , a);
+     set @s = if(@l > 0 , left(a , @l - 1) , a);
+     
+     return @s;
+ 
+ end; //
+ DELIMITER ;
+ 
+DELIMITER //
+ create function l_name(a varchar(200))
+ returns varchar(200)
+ deterministic
+ begin
+     set @l = locate(';' , a);
+     set @s = if(@l = 0 ,' ', substr(a , @l + 1 , length(a)));
+     
+     return @s;
+ 
+ end; //
+ DELIMITER ;
+ 
+ select genres , f_name(genres) as 'first_name' , l_name(genres) as 'last_name' from playstore;
 ```
 
 ---
@@ -177,14 +236,15 @@ FROM playstore;
 **Objective:** Create a query to fetch apps with ratings below average for a given category.
 
 ```sql
-SELECT App, Rating 
-FROM playstore 
-WHERE Category = 'GAME' 
-AND Rating < (
-    SELECT AVG(Rating) 
-    FROM playstore 
+SELECT App, Category, Rating
+FROM playstore
+WHERE Category = 'GAME'
+  AND Rating < (
+    SELECT AVG(Rating)
+    FROM playstore
     WHERE Category = 'GAME'
-);
+  )
+ORDER BY Rating ASC;
 ```
 
 ---
