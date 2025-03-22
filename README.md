@@ -88,14 +88,6 @@ The following business questions were tackled using SQL:
 
 ---
 
-## 💡 Future Work
-
-- Integrate visual dashboards (Tableau / Power BI) for non-technical stakeholders.
-- Extend analysis to include **user review sentiment** and **app update frequency**.
-- Develop a recommendation engine using the cleaned genre data.
-
----
-
 ## 🤝 Let's Connect!
 
 If you liked this project or have feedback, feel free to connect:
